@@ -9,6 +9,7 @@
 # References: 
 # - https://docs.python.org/3/library/threading.html
 # - https://www.tutorialspoint.com/python/python_thread_deadlock.htm
+# - https://learn.zybooks.com/zybook/CS-510-11482.202587-1/chapter/5/
 # - https://www.baeldung.com/cs/bounded-buffer-problem
 # - https://docs.python.org/3/library/asyncio-sync.html
 
