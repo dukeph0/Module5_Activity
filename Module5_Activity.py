@@ -18,7 +18,6 @@
 
 import threading 
 import time
-import random
 
 # Setup
 bufferSize = 5
@@ -71,7 +70,7 @@ def producer():
         producedItemID += 1
 
         # Simulate work being done
-        time.sleep(random.uniform(0.5, 1.0))
+        time.sleep(1)
 
 # Consumes items and uses semaphores to block when the buffer is empty
 def consumer(totalItemsToConsume):
@@ -99,7 +98,7 @@ def consumer(totalItemsToConsume):
 
 
     print("-" * 100)
-    print(f"CONSUMER CONSUMED ALL OF THE ITEMS. FINAL BUFFER SIZE: {len(buffer)}")
+    print(f"CONSUMER CONSUMED ALL OF THE ITEMS. FINAL BUFFER SIZE: {len(buffer)}. (Press Ctrl+C to stop):")
     print("-" * 100)
 
 
@@ -114,9 +113,9 @@ if __name__ == "__main__":
     try:
         # Create producer and consumer threads
         producerThread = threading.Thread(target=producer)
-        consumerThread = threading.Thread(target=consumer, args={totalItems})  
+        consumerThread = threading.Thread(target=consumer, args={totalItems,})  
 
-        print(f"Starting Bounded Buffer Simulation (Max Size: {bufferSize}, Total Items: {totalItems,})")
+        print(f"Starting Bounded Buffer Simulation (Max Size: {bufferSize}, Total Items: {totalItems})")
         print("-" * 100)
 
         # Set producer as daemon for clean exit
@@ -130,7 +129,7 @@ if __name__ == "__main__":
 
         buffer.join()
 
-        # Apparently you will never see this unless you Ctrl+C
+        # Apparently you will never see this unless you press Ctrl+C
         print("\nPROCESS SYNCHRONIZATION COMPLETED...")
         print(f"Final Buffer Size: {len(buffer)}")
     except KeyboardInterrupt:
