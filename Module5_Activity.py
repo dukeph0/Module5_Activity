@@ -10,7 +10,7 @@
 # - https://docs.python.org/3/library/threading.html
 # - https://www.tutorialspoint.com/python/python_thread_deadlock.htm
 # - https://www.baeldung.com/cs/bounded-buffer-problem
-# - https://docs.python.org/3/library/queue.html
+# - https://docs.python.org/3/library/asyncio-sync.html
 
 
 # Version   Author      Date            Description
@@ -19,7 +19,6 @@
 import threading 
 import time
 import random
-import queue
 
 # Setup
 bufferSize = 5
@@ -28,7 +27,7 @@ totalItems = 20
 # unsafe buffer (queue)
 buffer = []
 
-# Define Synchronization primitives:
+# ====Synchronization primitives======
 
 # Mutex: Controls access to the shared 'buffer' list (lock for critical section)
 mutex = threading.Lock()
@@ -40,7 +39,7 @@ empty = threading.Semaphore(bufferSize)
 full = threading.Semaphore(0)
 
 
-# Creates continuous items to be loaded into buffer
+# Creates continuous items and uses semaphores to block when buffer is full
 def producer():
 
     # Start with first produced item
@@ -49,51 +48,58 @@ def producer():
     # Set a continuous production of item following the first item
     while True:
 
-        if len(buffer) >= bufferSize:
-            print(f"( + ) Producer: Buffer full (Size {len(buffer)}). Waiting....")
-            time.sleep(0.5)
-            continue
-
+        # Assign ID to current item
         producedItem = f"Item-{producedItemID}"
 
-        # Load item into buffer
-        print(f"( + ) Producer: Loading {producedItem} into buffer...")
-        buffer.append(producedItem)
+        # Wait for an empty slot. Block if buffer is full 
+        empty.acquire()
 
+        # Have mutex lock retrieve the critical section
+        mutex.acquire()
+
+        # Load item into buffer (CRITICAL SECTION)
+        buffer.append(producedItem)
         print(f"( + ) Producer: Loaded {producedItem} into buffer. Current Load Size: {len(buffer)}")
+
+        # Release mutex lock
+        mutex.release()
+
+        # Release one full slot for consumer
+        full.release()
+        
+        # Produce another item, deadlock will occur after consumer finishes
         producedItemID += 1
 
+        # Simulate work being done
         time.sleep(random.uniform(0.5, 1.0))
 
-    print("-" * 100)
-    print(f"PRODUCTION HAS ENDED...")
-    print("-" * 100)
-
+# Consumes items and uses semaphores to block when the buffer is empty
 def consumer(totalItemsToConsume):
     itemsConsumed = 0
     while itemsConsumed < totalItemsToConsume:
 
-        if buffer:
-            try:
-                consumeItem = buffer.pop(0)
+        # Wait for a full slot to be available
+        print("( - ) Consumer: Waiting to eat item...")
+        full.acquire()
 
-                itemsConsumed += 1
-                
-                print(f"( - ) Consumer: Ate {consumeItem}. Remaining size to consume: {totalItemsToConsume - itemsConsumed}")
-        
-            except IndexError:
-                print("CONSUMER FAILED: Tried to pop from an empty buffer (IndexError)")
-                time.sleep(0.1)
-                continue
+        # Have mutex lock retrieve the critical section
+        mutex.acquire()
 
-        else:
-            print("( - ) Consumer: Waiting to eat item...")
-            time.sleep(0.5)
+        # Remove item from buffer (CRITICAL SECTION)
+        consumeItem = buffer.pop(0)
 
-        time.sleep(random.uniform(0.5, 1.0))
+        # Release mutex lock
+        mutex.release()
+
+        # Release one empty slot for producer
+        empty.release()
+
+        itemsConsumed += 1
+        print(f"( - ) Consumer: Ate {consumeItem}. Remaining size to consume: {totalItemsToConsume - itemsConsumed}")
+
 
     print("-" * 100)
-    print(f"CONSUMER CONSUMED ALL OF THE ITEMS...")
+    print(f"CONSUMER CONSUMED ALL OF THE ITEMS. FINAL BUFFER SIZE: {len(buffer)}")
     print("-" * 100)
 
 
@@ -110,8 +116,11 @@ if __name__ == "__main__":
         producerThread = threading.Thread(target=producer)
         consumerThread = threading.Thread(target=consumer, args={totalItems})  
 
-        print(f"Starting Bounded Buffer Simulation (Max Size: {bufferSize}, Total Items: {totalItems})")
+        print(f"Starting Bounded Buffer Simulation (Max Size: {bufferSize}, Total Items: {totalItems,})")
         print("-" * 100)
+
+        # Set producer as daemon for clean exit
+        producerThread.daemon = True
 
         producerThread.start()
         consumerThread.start()
@@ -121,8 +130,10 @@ if __name__ == "__main__":
 
         buffer.join()
 
+        # Apparently you will never see this unless you Ctrl+C
         print("\nPROCESS SYNCHRONIZATION COMPLETED...")
         print(f"Final Buffer Size: {len(buffer)}")
     except KeyboardInterrupt:
         # Handle exit on Ctrl+C
         print("\n\nProgram stopped.")
+        
